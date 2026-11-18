@@ -16,6 +16,10 @@ English · [中文](./README.md)
 
 ---
 
+## On a real desk
+
+![The dashboard on a real Kindle](docs/assets/real-device.jpg)
+
 ## What it is
 
 A jailbroken Kindle Paperwhite 3 (1072 × 1448, 16-level grayscale) used as a desk
@@ -237,6 +241,7 @@ docs/         tutorial, jailbreak tool list, device notes, demo images
 
 - Jailbreak and device environment: community toolchain (WinterBreak / Hotfix / KUAL / MRPI / USBNetwork) — see [`docs/越狱工具清单.md`](docs/越狱工具清单.md)
 - Font: PingFang SC (macOS system font)
+- The screen content in the photo is demo data; the account balance was replaced with a fictional value
 
 ## License
 

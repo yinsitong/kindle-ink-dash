@@ -15,6 +15,10 @@
 
 ---
 
+## 真机什么样
+
+![Kindle 摆在桌上的实拍](docs/assets/real-device.jpg)
+
 ## 它是什么
 
 一台 Kindle Paperwhite 3（1072 × 1448，16 级灰度）越狱后当桌面副屏用。
@@ -93,15 +97,23 @@ bash uninstall.sh      # 卸载；加 --purge 连数据一起删
 # 在 Kindle 上准备部署目录
 ssh root@<kindle-ip> 'mkdir -p /mnt/us/kindle-dash'
 
-# 推送设备端脚本
+# ① 放上你自己的公钥（KUAL 的 SSH 修复 / 安装脚本会读这个文件）
+#    仓库里不含任何人的公钥——换成你自己的，否则你连不上自己的设备
+scp ~/.ssh/id_ed25519.pub root@<kindle-ip>:/mnt/us/kindle-dash/authorized_keys.pub
+
+# ② 推送设备端脚本
 scp device/dash.sh device/launch.sh root@<kindle-ip>:/mnt/us/kindle-dash/
 
-# 写入图床地址（IP 换成运行 serve.py 那台 Mac 的局域网地址）
+# ③ 写入图床地址（IP 换成运行 serve.py 那台 Mac 的局域网地址）
 ssh root@<kindle-ip> 'echo "DASH_SERVER=\"http://<mac-ip>:8077/quota.png\"" > /mnt/us/kindle-dash/config.sh'
 
-# 启动
+# ④ 启动
 ssh root@<kindle-ip> 'sh /mnt/us/kindle-dash/launch.sh'
 ```
+
+> **第 ① 步不能省。** `device/kual/SSH-Fix.sh` 和 `USBNet-Install.sh` 会把
+> `/mnt/us/kindle-dash/authorized_keys.pub` 的内容写入设备的 `authorized_keys`。
+> 少了这个文件，脚本会打印警告并跳过——设备将只允许密码登录（dropbear 默认关闭）。
 
 完整的分步教程（含越狱全过程、SSH 配置、开机自启）见
 **[`docs/Kindle魔改看板-完整教程.md`](docs/Kindle魔改看板-完整教程.md)**。
@@ -288,6 +300,7 @@ docs/         教程、越狱工具清单、设备笔记、演示图
 - 越狱与设备环境：社区工具链（WinterBreak / Hotfix / KUAL / MRPI / USBNetwork），
   清单见 [`docs/越狱工具清单.md`](docs/越狱工具清单.md)
 - 字体：PingFang SC（macOS 系统字体）
+- 实拍图中屏幕内容为演示数据，账户余额已替换为虚构值
 
 ## License
 

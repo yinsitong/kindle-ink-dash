@@ -20,3 +20,6 @@ venv/
 .env
 .env.local
 config.local.sh
+
+# 原始照片（含真实账户信息，只保留 docs/assets 里处理过的版本）
+Photos/
