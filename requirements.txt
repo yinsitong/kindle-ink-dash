@@ -1,0 +1,5 @@
+# 唯一硬依赖：四页的绘制都基于 Pillow
+Pillow>=10.0
+
+# 可选：额度页需要（见 data/config.env.example 的 QUOTA_MODULE_DIR）
+# requests>=2.31

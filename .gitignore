@@ -1,0 +1,22 @@
+# 运行时数据（个人内容，不要提交）
+data/*
+!data/config.env.example
+
+# LaunchAgent 由 install.sh 按当前路径生成，不入库
+launchd/*.plist
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# macOS
+.DS_Store
+._*
+
+# 本地配置
+.env
+.env.local
+config.local.sh
