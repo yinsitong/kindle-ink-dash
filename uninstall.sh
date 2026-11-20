@@ -14,6 +14,7 @@ LABELS=(
   com.proma.kindle-dash-watchdog
   com.proma.kindle-quota-render
   com.proma.kindle-timelog
+  com.proma.kindle-menubar
 )
 
 echo "→ 停止并移除 LaunchAgent"
@@ -26,6 +27,8 @@ done
 echo "→ 停掉残留进程"
 pkill -f "$ROOT/bin/serve.py" 2>/dev/null || true
 pkill -f "$ROOT/bin/watchdog.py" 2>/dev/null || true
+pkill -f "$ROOT/bin/menubar.py" 2>/dev/null || true
+rm -f "$ROOT/data/.menubar.pid"
 
 if [ "${1:-}" = "--purge" ]; then
   echo "→ 删除运行数据（--purge）"

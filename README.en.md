@@ -57,7 +57,10 @@ much work is left today.
 
 **Mac side**
 
-- Four LaunchAgents: render (5 min), image server (KeepAlive), time logger (1 min), watchdog (1 min)
+- Five LaunchAgents: render (5 min), image server (KeepAlive), time logger (1 min), watchdog (1 min),
+  macOS menu bar status icon (always on)
+- Menu bar status: a colour dot plus time since the last pull tells you at a glance whether the
+  image host, the renderer and the Kindle are all on schedule (see below)
 - Watchdog locates the device by MAC, gates rendering on a private IP, rate-limits SSH recovery
 - Every long-running entry point is `.py` (see the TCC note below) so `~/Downloads` is not blocked
 - Weekly report: `render/weekly_report.py` summarizes the week and can push to Lark
@@ -118,7 +121,8 @@ Mac                                                       Kindle
 │  │    └→ render/*.py ─→ data/pages/   │
 │  ├─ serve.py         :8077 image host │   ② Kindle pulls with wget
 │  ├─ time_logger.py   every 1 min      │   ③ image painted below y=100
-│  └─ watchdog.py      every 1 min      │   ④ top 100px keeps native status bar
+│  ├─ watchdog.py      every 1 min      │   ④ top 100px keeps native status bar
+│  └─ menubar.py       menu bar status  │
 └───────────────────────────────────────┘
                      ↑ SSH (address / process recovery, rate-limited)
                      │
@@ -139,6 +143,7 @@ radio and drains the battery.
 | Todo page | `lark-cli` + `~/.proma/planning.db` (optional) | shows whichever source is available |
 | Quota page | a module exposing `query_deepseek` / `query_kimi` | that page shows N/A; other pages unaffected |
 | Timeline page | macOS `osascript` (foreground app) | manual backfill only |
+| Mac menu bar icon | `pyobjc-framework-Cocoa` (`install.sh` installs it) | icon skipped, everything else keeps running |
 
 Everything configurable lives in `data/config.env` (gitignored); see
 [`data/config.env.example`](data/config.env.example).
@@ -157,6 +162,38 @@ through `subprocess`. Switching a plist back to `/bin/sh` makes it fail with 126
 
 > Without living in `~/Downloads` this restriction does not apply, but keeping Python
 > entry points is more portable anyway.
+
+## macOS menu bar: is the dashboard alive?
+
+Because **the Kindle pulls**, a static screen tells you nothing: the content may not have
+changed, the device may be asleep, or the Mac side may be broken. The menu bar reduces all
+of that to one colour.
+
+Title = `📟` + colour dot + time since the last pull (e.g. `📟🟢3m`, `📟🟡17h`):
+
+| Icon | Meaning |
+| --- | --- |
+| 🟢 `3m` | All good. The number is minutes since the Kindle's last pull (normal cadence: 5 min) |
+| 🟡 | Something is off: no pull for over 12 min during the day, rendering stalled, or a page failed |
+| 🔴 | Nothing listening on `:8077` — the Kindle cannot fetch an image right now |
+| 🌙 | Night sleep (no pulls between 21:00 and 09:00 is by design in `dash.sh`) |
+
+Open the menu for details and shortcuts:
+
+- Image host state and PID, the Kindle's IP and last pull, freshness of each of the four pages, the Mac's IP
+- A failing page states its reason (e.g. "quota page: set DEEPSEEK_API_KEY")
+- One-click: open preview, render now, restart image host, open project folder, open logs
+
+How it works (`bin/menubar.py`, refreshes every 30 s):
+
+- Everything is derived from existing artefacts, so **the device is never disturbed**: a TCP connect to
+  `:8077` for the image host (never `/quota.png` — that would advance the rotation), the last
+  `<ip> <- <page>` line in `data/server.log`, and mtimes of `data/pages/*.png` plus
+  `/tmp/kindle-render.log` for rendering
+- Loopback and local-IP requests are ignored — those come from the install self-check or a browser
+  preview, not from the device
+- Health checks use `/health`, which neither advances the rotation nor writes the access log
+- Single instance: a second launch exits; "Quit" really quits, only crashes are restarted by launchd
 
 ## The status bar: use the Kindle's own
 
@@ -222,6 +259,7 @@ Everything lives in `render/dash_style.py` and affects all four pages.
 
 ```text
 bin/          long-running entry points (all .py — see the TCC note)
+              serve.py / render_all.py / time_logger.py / watchdog.py / menubar.py / kindle_ip.py
 render/       page renderers + weekly report
 scripts/      make_demo_assets.py — renders the README images from fake data
 device/       Kindle-side scripts (dash.sh, launch.sh, KUAL extensions)

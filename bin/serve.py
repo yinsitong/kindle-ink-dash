@@ -59,6 +59,15 @@ INDEX_HTML = b"""<!DOCTYPE html>
 
 class Handler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
+        # /health 供 install.sh 与菜单栏自检：读完即走，不推进轮播、不写访问日志
+        if self.path.startswith("/health"):
+            body = b"ok\n"
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if self.path.startswith("/quota.png"):
             page = next_page()
             if not page:

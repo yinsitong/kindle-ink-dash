@@ -55,7 +55,9 @@ Mac 每 5 分钟渲染四页 PNG，Kindle 用 `wget` 主动拉图、`eips` 上�
 
 **Mac 侧**
 
-- 四个 LaunchAgent：渲染（5 分钟）、图床（常驻 KeepAlive）、时间采集（1 分钟）、看门狗（1 分钟）
+- 五个 LaunchAgent：渲染（5 分钟）、图床（常驻 KeepAlive）、时间采集（1 分钟）、看门狗（1 分钟）、
+  macOS 菜单栏状态图标（常驻）
+- 菜单栏状态看板：颜色点 + 上次拉图时长，一眼看出图床 / 渲染 / Kindle 是否在正常节拍上（见下节）
 - 看门狗按 MAC 定位设备、按私有 IP 判定是否渲染、限频 SSH 自愈
 - 全部入口是 `.py`（见下方 TCC 说明），避免 `~/Downloads` 被 TCC 拒绝
 - 周报：`render/weekly_report.py` 汇总一周时间分布，可推送飞书
@@ -128,7 +130,8 @@ Mac 端                                                    Kindle 端
 │  │    └→ render/*.py ─→ data/pages/   │
 │  ├─ serve.py         :8077 图床        │   ② Kindle 用 wget 轮播拉图
 │  ├─ time_logger.py   每 1 分钟采集前台App│   ③ 主图贴 y=100 以下
-│  └─ watchdog.py      每 1 分钟自愈      │   ④ 顶部 100px 留给原生状态栏
+│  ├─ watchdog.py      每 1 分钟自愈      │   ④ 顶部 100px 留给原生状态栏
+│  └─ menubar.py       Mac 菜单栏状态图标  │
 └───────────────────────────────────────┘
                      ↑ SSH（地址/进程自愈，限频）
                      │
@@ -148,6 +151,7 @@ Mac 端                                                    Kindle 端
 | 待办页 | `lark-cli` + `~/.proma/planning.db`（可选） | 只显示能读到的那一路 |
 | 额度页 | 一个提供 `query_deepseek` / `query_kimi` 的模块 | 该页显示 N/A，其余三页正常 |
 | 时间线页 | macOS `osascript`（采集前台 App） | 只能靠手动补录 |
+| Mac 菜单栏状态图标 | `pyobjc-framework-Cocoa`（`install.sh` 自动装） | 跳过图标，其余服务照常 |
 
 所有可选配置都在 `data/config.env`（已 gitignore），模板见
 [`data/config.env.example`](data/config.env.example)。
@@ -165,6 +169,35 @@ macOS 的 TCC 把 `~/Downloads` 列为受保护目录。实测：
 plist 里若改回 `/bin/sh`，服务会立刻 126 失败。
 
  > 项目不放在 `~/Downloads` 时没有这个限制，但仍建议保持现状：Python 入口跨环境更稳。
+
+## macOS 菜单栏状态：不用看 Kindle 就知道它还活着吗
+
+Kindle 是「主动拉图」，所以屏幕上没变化时你无法判断是内容没变、设备睡了、
+还是 Mac 端渲染/图床挂了。菜单栏图标把这些状态收敛成一个颜色。
+
+菜单栏文字 = `📟` + 颜色点 + 上次拉图时长（例：`📟🟢3m`、`📟🟡17h`）：
+
+| 图标 | 含义 |
+| --- | --- |
+| 🟢 `3m` | 一切正常。数字是 Kindle 上次拉图距今几分钟（正常节拍 5 分钟） |
+| 🟡 | 有异常：Kindle 白天超过 12 分钟没拉图 / 渲染调度停了 / 某页渲染失败 |
+| 🔴 | 图床 :8077 没监听——Kindle 此刻一定拉不到图 |
+| 🌙 | 夜间放睡（21:00–09:00 不拉图是 `dash.sh` 的设计，不是故障） |
+
+点开菜单能看到明细与快捷动作：
+
+- 图床状态与 PID、Kindle 的 IP 与最后拉图时间、四页各自的新鲜度、Mac 当前 IP
+- 失败页会直接写出原因（例如「额度页：请设置 DEEPSEEK_API_KEY」）
+- 一键：打开预览页 / 立即重新渲染 / 重启图床 / 打开项目目录 / 打开日志
+
+实现要点（`bin/menubar.py`，30 秒自刷新）：
+
+- 状态全部来自现有产物，**不额外打扰设备**：TCP 连 `:8077` 判图床（不请求 `/quota.png`，
+  否则会推进轮播）、解析 `data/server.log` 的最后一条 `<ip> <- <page>` 判 Kindle、
+  看 `data/pages/*.png` 的 mtime 与 `/tmp/kindle-render.log` 判渲染
+- 回环（`127.0.0.1`）与本机 IP 的请求会被忽略，那是 install 自检或浏览器预览，不代表设备拉过图
+- 图床健康检查走 `/health`（不推进轮播、不写日志）
+- 单实例：重复启动会自动退出；点「退出菜单栏图标」是真退出，崩溃才由 launchd 拉起
 
 ## 状态栏：时间与电池都用 Kindle 自带的
 
@@ -256,6 +289,7 @@ bin/          常驻入口（全部是 .py，见 TCC 说明）
   render_all.py   每 5 分钟渲染四页
   time_logger.py  每分钟采集前台 App
   watchdog.py     每分钟自愈（IP / 服务 / 设备）
+  menubar.py      macOS 菜单栏状态图标（PyObjC）
   kindle_ip.py    按 MAC 定位 Kindle 的 IP
 render/       渲染脚本
   dash_style.py          四页共用视觉规范（改样式只改这里）
@@ -286,6 +320,7 @@ docs/         教程、越狱工具清单、设备笔记、演示图
 | 会议时长来源 | 飞书妙记（`render/minutes_annotate.py` 自动补录） |
 | Kindle 的 MAC | `data/config.env` 的 `KINDLE_MAC` |
 | 跨网段 / 唤醒扫描频率 | `bin/watchdog.py` 的 `CROSS_INTERVAL` |
+| 菜单栏刷新节拍 / 判异常的阈值 | `bin/menubar.py` 顶部 `REFRESH_SEC`、`PULL_OK_MIN`、`RENDER_OK_MIN` |
 
 ## 已知限制
 
